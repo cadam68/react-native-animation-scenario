@@ -152,6 +152,14 @@ export const useAnimationScenario = ({
     vibrationTriggered.current = false;
     setCurrentStepIndex(-1);
     holdResolver.current = undefined;
+
+    // 🧼 Reset each animated value to its initial state
+    Object.entries(initialValues).forEach(([key, val]) => {
+      const animatedValue = animatedRefs.current[key];
+      if (animatedValue) {
+        animatedValue.setValue(val);
+      }
+    });
   };
 
   const nextStep = async () => {
