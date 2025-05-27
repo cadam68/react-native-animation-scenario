@@ -137,6 +137,7 @@ export const useAnimationScenario = ({
         });
         break;
 
+        // note:  goto() only jump to global labels
       case "goto": {
         const targetLabel = step.label;
         const targetIndex = labels[targetLabel];

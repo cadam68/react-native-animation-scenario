@@ -1,5 +1,6 @@
 import { compileScenario } from "../src/compileScenario.js";
 import { label, comment, move, defineScenario, use, delay, goto } from "../src/scenarioEngine.js";
+import * as assert from "node:assert";
 
 /* run :
 npm test
@@ -147,6 +148,48 @@ test("step2.3 - throws error if a block contains a label already defined in the 
   expect(() => compileScenario(scenario, { blocks }))
     .toThrow("Duplicate label 'start'");
 });
+
+test("step2.4 - compileScenario flattens blocks and preserves labels", () => {
+
+  const blocks = {
+    moveBlock: defineScenario([
+      label("insideBlock"),
+      move("x", 100, 500),
+    ]),
+  };
+
+  const scenario = defineScenario([
+    label("start"),
+    use("moveBlock"),
+    label("end"),
+  ]);
+
+  const { steps, labels } = compileScenario(scenario, { blocks });
+
+  // console.log(steps);
+  // console.log(labels);
+
+  // Assert label positions
+  assert.deepEqual(labels, {
+    start: 0,
+    end: 3,
+  });
+
+  // Assert that "insideBlock" label inside the block is not registered globally
+  assert.strictEqual(labels.insideBlock, undefined);
+
+  // However, the step list should still contain the labeled step
+  const labelStep = steps.find(s => s.label === "insideBlock");
+  assert.ok(labelStep, "Label insideBlock should exist in steps");
+  assert.strictEqual(labelStep.type, "label");
+
+  // Ensure that the step following the label is the move
+  const labelIndex = steps.indexOf(labelStep);
+  const nextStep = steps[labelIndex + 1];
+  assert.strictEqual(nextStep.type, "move");
+  assert.strictEqual(nextStep.target, "x");
+});
+
 
 test("step3.0 - goto jumps to labeled step", () => {
   const scenario = defineScenario([
