@@ -1,10 +1,14 @@
-import { useRef, useState, useCallback } from "react";
+import {useRef, useState, useCallback, useEffect} from "react";
 import { Animated, View, Text, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
+import { compileScenario } from "./compileScenario.js";
+
+const debug = true;
 
 export const useAnimationScenario = ({
                                        scenario,
                                        initialValues,
+                                       blocks = {},
                                        callbacks = {},
                                        loop = false,
                                        vibrationMode = "once",
@@ -40,6 +44,19 @@ export const useAnimationScenario = ({
     if (missingCallbacks.length) messages.push(`Missing callback functions: ${missingCallbacks.join(", ")}`);
     throw new Error(`[useAnimationScenario] ${messages.join(" | ")}`);
   }
+
+  // Compile once
+  const { steps, labels } = compileScenario(scenario, { blocks });
+
+  useEffect(() => {
+    if(debug) {
+      console.log("----")
+      console.log("*** scenario ***\n" + JSON.stringify(scenario));
+      console.log("*** raw scenario\n" + JSON.stringify(steps));
+      console.log("----")
+    }
+  }, [debug]);
+
   // ✅ Create refs from initialValues
   const animatedRefs = useRef(
     Object.fromEntries(
@@ -51,8 +68,9 @@ export const useAnimationScenario = ({
   const stepIndexRef = useRef(0);
   const vibrationTriggered = useRef(false);
   const holdResolver = useRef(null);
+  const shouldStop = useRef(false);
 
-  const stepLabels = scenario.map((s, i) => s.label || s.name || `${s.type}-${i}`);
+  const stepLabels = steps.map((s, i) => s.label || s.name || `${s.type}-${i}`);
 
   const runStep = useCallback(async (step, index) => {
     setCurrentStepIndex(index);
@@ -119,35 +137,60 @@ export const useAnimationScenario = ({
         });
         break;
 
+      case "goto": {
+        const targetLabel = step.label;
+        const targetIndex = labels[targetLabel];
+
+        if (targetIndex === undefined) {
+          throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
+        }
+        stepIndexRef.current = targetIndex;
+        console.log(`goto step# ${targetIndex}`);
+        return "jumped"; // skip auto-increment to let jump take effect
+      }
+
+      case "label":
+        break;
+
       default:
         console.warn(`[useAnimationScenario] Unknown step type "${step.type}"`);
     }
-  }, [scenario]);
+  }, [steps]);
 
   const runAuto = useCallback(async () => {
     vibrationTriggered.current = false;
+    stepIndexRef.current = 0;
+    shouldStop.current = false;
+
     const run = async () => {
-      for (let i = 0; i < scenario.length; i++) {
-        await runStep(scenario[i], i);
+      while (stepIndexRef.current < steps.length && !shouldStop.current) {
+        const currentIndex = stepIndexRef.current;
+        const result = await runStep(steps[currentIndex], currentIndex);
+        if (shouldStop.current) break;
+        if (result === "jumped") continue;
+        stepIndexRef.current++;
       }
     };
 
     if (loop) {
-      while (true) await run();
+      while (!shouldStop.current) await run();
     } else {
       await run();
     }
-  }, [scenario]);
+  }, [steps]);
 
   const start = () => {
     if (mode !== "manual") runAuto();
   };
 
   const stop = () => {
-    // Not used currently — can be enhanced for cancelable animations
+    if(debug) console.log('stop()')
+    shouldStop.current = true;
+    reset();
   };
 
   const reset = () => {
+    if(debug) console.log('reset()')
     stepIndexRef.current = 0;
     vibrationTriggered.current = false;
     setCurrentStepIndex(-1);
@@ -171,11 +214,11 @@ export const useAnimationScenario = ({
       return;
     }
 
-    const step = scenario[stepIndexRef.current];
+    const step = steps[stepIndexRef.current];
     if (!step) return;
     await runStep(step, stepIndexRef.current);
     stepIndexRef.current++;
-    if (stepIndexRef.current >= scenario.length) stepIndexRef.current = 0;
+    if (stepIndexRef.current >= steps.length) stepIndexRef.current = 0;
   };
 
   const TimelineView = () => (

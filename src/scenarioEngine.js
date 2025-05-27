@@ -1,4 +1,3 @@
-// scenarioEngine.js
 
 // === Step Helpers ===
 export const move = (target, to, duration, label, easing, native = true) => Object.freeze({
@@ -25,32 +24,56 @@ export const hold = (label) => Object.freeze({
   type: "hold", ...(label ? { label } : {})
 });
 
+export const label = (label) => Object.freeze({
+  type: "label", ...(label ? { label } : {})
+});
+
+export const comment = (comment) => Object.freeze({
+  type: "comment", ...(comment ? { comment } : {})
+});
+
+export const use = (block) => Object.freeze({
+  type: "use", block
+});
+
+export const goto = (label) => Object.freeze({
+  type: "goto", ...(label ? { label } : {})
+});
+
+
 // === Scenario Wrapper ===
-export const defineScenario = (steps) => Object.freeze(steps);
+export const defineScenario = (steps) => {
+  if (!Array.isArray(steps)) throw new Error("defineScenario() requires an array");
+  return Object.freeze(steps);
+};
+
 
 // === Load from String with Sandboxing ===
 export const loadScenarioFromString = (code) => {
   const fn = new Function(
-    "defineScenario",
-    "move",
-    "delay",
-    "callback",
-    "vibrate",
-    "parallel",
-    "hold",
-    `return ${code};`
+    "defineScenario", "move", "delay", "callback", "vibrate", "parallel", "hold", "label", "comment", "use", "goto"
+      `return ${code};`
   );
 
-  return fn(
+  const result = fn(
     Object.freeze(defineScenario),
     Object.freeze(move),
     Object.freeze(delay),
     Object.freeze(callback),
     Object.freeze(vibrate),
     Object.freeze(parallel),
-    Object.freeze(hold)
+    Object.freeze(hold),
+    Object.freeze(label),
+    Object.freeze(comment),
+    Object.freeze(use),
+    Object.freeze(goto)
   );
+
+  if (!Array.isArray(result)) throw new Error("Scenario must be an array");
+
+  return Object.freeze(result);
 };
+
 
 // === Dev Playground Helper (logs the parsed scenario) ===
 export const playScenario = (rawCode, verbose = false) => {
