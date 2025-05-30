@@ -325,6 +325,12 @@ MIT – Created by Cyril Adam
 
 ---
 
+## 📜 CHANGELOG for `v1.3.1`
+
+## 🐞 Fixed
+- Move useScreenLifecycle to a separate export to avoid dependency issues on Snack
+
+
 ## 📜 CHANGELOG for `v1.3.0`
 
 ### ✨ Added
