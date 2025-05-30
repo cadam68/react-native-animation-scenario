@@ -49,7 +49,6 @@ Works with [React Native](https://reactnative.dev/) and [Expo](https://expo.dev)
 ```
 npm install react-native-animation-scenario
 ```
-
 ---
 
 ## 📦 Exports
@@ -306,6 +305,18 @@ Great for development or visual debugging of onboarding flows.
 ## 🛡 Safeguards
 - 🚫 Throws error if an initialValue or callback is missing
 - 🔒 All animations use Animated.Value and native drivers by default
+
+---
+
+## 🧩 Optional: Screen Lifecycle Hook
+
+This helper hook requires `@react-navigation/native` and should be imported separately:
+
+```js
+import { useScreenLifecycle } from 'react-native-animation-scenario/useScreenLifecycle';
+``` 
+
+It allows you to trigger logic when the screen gains or loses focus.
 
 ---
 

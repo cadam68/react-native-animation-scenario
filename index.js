@@ -1,7 +1,6 @@
-// Named exports
-export { useAnimationScenario } from "./src/useAnimationScenario.js";
-export { useScreenLifecycle } from "./src/useScreenLifecycle.js";
+export { useAnimationScenario } from "./src/useAnimationScenario";
+export * from "./src/scenarioEngine";
+export * from "./src/compileScenario";
 
-// Re-export all helpers
-export * from "./src/scenarioEngine.js";
-export * from "./src/compileScenario.js";
+// ⚠️ Not exported here to avoid dependency issues on Snack:
+// export { useScreenLifecycle } from "./src/useScreenLifecycle";
