@@ -2,8 +2,9 @@ import {useRef, useState, useCallback, useEffect} from "react";
 import { Animated, View, Text, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { compileScenario } from "./compileScenario.js";
+import { TimelineView as Timeline } from "./TimelineView";
 
-const debug = true;
+const debug = false;
 
 export const useAnimationScenario = ({
                                        scenario,
@@ -18,35 +19,12 @@ export const useAnimationScenario = ({
     throw new Error(`[useAnimationScenario] Missing required "initialValues" parameter.`);
   }
 
-  // 🔍 Validate that all targets in the scenario have an initial value
-  const missingRefs = [];
-  const missingCallbacks = [];
-
-  scenario.forEach(step => {
-    const targets = step.target
-      ? [step.target]
-      : Array.isArray(step.targets)
-        ? step.targets.map(t => t.target)
-        : [];
-
-    targets.forEach(t => {
-      if (!initialValues.hasOwnProperty(t)) {
-        missingRefs.push(t);
-      }
-    });
-
-    if (step.type === "callback" && !callbacks.hasOwnProperty(step.name) && !missingCallbacks.includes(step.name)) missingCallbacks.push(step.name);
-  });
-
-  if (missingRefs.length || missingCallbacks.length) {
-    const messages = [];
-    if (missingRefs.length) messages.push(`Missing initial values for targets: ${missingRefs.join(", ")}`);
-    if (missingCallbacks.length) messages.push(`Missing callback functions: ${missingCallbacks.join(", ")}`);
-    throw new Error(`[useAnimationScenario] ${messages.join(" | ")}`);
-  }
-
   // Compile once
-  const { steps, labels } = compileScenario(scenario, { blocks });
+  const { steps, labels } = compileScenario(scenario, {
+    blocks,
+    initialValues,
+    callbacks,
+  });
 
   useEffect(() => {
     if(debug) {
@@ -66,6 +44,7 @@ export const useAnimationScenario = ({
 
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const stepIndexRef = useRef(0);
+  const callingStepIndexRef = useRef();
   const vibrationTriggered = useRef(false);
   const holdResolver = useRef(null);
   const shouldStop = useRef(false);
@@ -77,7 +56,7 @@ export const useAnimationScenario = ({
 
     switch (step.type) {
       case "move":
-      case "timing":
+      case "timing": {
         await new Promise(res =>
           Animated.timing(animatedRefs.current[step.target], {
             toValue: step.to,
@@ -87,8 +66,9 @@ export const useAnimationScenario = ({
           }).start(() => res())
         );
         break;
+      }
 
-      case "parallel":
+      case "parallel": {
         await new Promise(res =>
           Animated.parallel(
             step.targets.map(t =>
@@ -102,12 +82,14 @@ export const useAnimationScenario = ({
           ).start(() => res())
         );
         break;
+      }
 
-      case "delay":
+      case "delay": {
         await new Promise(res => setTimeout(res, step.duration));
         break;
+      }
 
-      case "vibrate":
+      case "vibrate": {
         if (
           (vibrationMode === "once" && !vibrationTriggered.current) ||
           vibrationMode === "always"
@@ -116,42 +98,99 @@ export const useAnimationScenario = ({
           if (vibrationMode === "once") vibrationTriggered.current = true;
         }
         break;
+      }
 
-      case "callback":
+      case "callback": {
         // Sync functions (like () => setShowText(true)) to work fast
         // Async functions (like () => await doSomething()) to pause animation until completion
         const fn = callbacks[step.name];
         if (fn) {
           const result = fn();  // might return a promise
-          if (result instanceof Promise) {
-            await result; // wait only if it's async
-          }
-        } else {
-          console.warn(`[useAnimationScenario] Callback "${step.name}" not found.`);
-        }
+          if (result instanceof Promise) await result; // wait only if it's async
+        } else console.warn(`[useAnimationScenario] Callback "${step.name}" not found.`);
         break;
+      }
 
-      case "hold":
+      case "hold": {
         await new Promise(resolve => {
           holdResolver.current = resolve;  // store it to resume later
         });
         break;
+      }
 
-        // note:  goto() only jump to global labels
+      // note:  goto() only jump to global labels
       case "goto": {
         const targetLabel = step.label;
         const targetIndex = labels[targetLabel];
 
-        if (targetIndex === undefined) {
-          throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
-        }
+        if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
+        callingStepIndexRef.current = index;
         stepIndexRef.current = targetIndex;
-        console.log(`goto step# ${targetIndex}`);
-        return "jumped"; // skip auto-increment to let jump take effect
+
+        if (debug) console.log(`goto step# ${targetIndex}`);
+        return "jumped";
       }
 
       case "label":
         break;
+
+      case "set": {
+        let result;
+        let fn;
+
+        if (typeof step.value === "string" && callbacks[step.value]) fn = callbacks[step.value];
+        if (!fn && typeof step.value === "function") fn = step.value;
+        if (fn) {
+          result = fn();
+          if (result instanceof Promise) result = await result;
+        } else result = step.value;
+
+        const ref = animatedRefs.current[step.target];
+        if (!ref) throw new Error(`Unknown ref: ${step.target}`);
+        ref.setValue(result);
+        break;
+      }
+
+      case "resume": {
+        if (callingStepIndexRef.current !== undefined && callingStepIndexRef.current !== null) {
+          const targetIndex = callingStepIndexRef.current;
+          callingStepIndexRef.current = undefined;
+          stepIndexRef.current = targetIndex;
+
+          if (debug) console.log(`resume to step# ${targetIndex}`);
+          return "jumped";
+        } else {
+          console.warn(`[useAnimationScenario] resume() called without previous goto()`);
+        }
+        break;
+      }
+
+      case "stop": {
+        shouldStop.current = true;
+        if (debug) console.log("🛑 Scenario stopped by 'stop' step");
+        break;
+      }
+
+      case "ifJump": {
+        let result;
+        const fn = typeof step.condition === "string" ? callbacks[step.condition] : step.condition;
+        if (!fn) {
+          console.warn(`[useAnimationScenario] Missing condition function "${step.condition}"`);
+          break;
+        }
+        result = fn();
+        if (result instanceof Promise) result = await result;
+        const targetLabel = result ? step.labelTrue : step.labelFalse;
+
+        if (targetLabel) {
+          const targetIndex = labels[targetLabel];
+          if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
+          stepIndexRef.current = targetIndex;
+          return "jumped";
+        }
+        break;
+      }
+
 
       default:
         console.warn(`[useAnimationScenario] Unknown step type "${step.type}"`);
@@ -161,6 +200,7 @@ export const useAnimationScenario = ({
   const runAuto = useCallback(async () => {
     vibrationTriggered.current = false;
     stepIndexRef.current = 0;
+    callingStepIndexRef.current = undefined;
     shouldStop.current = false;
 
     const run = async () => {
@@ -193,9 +233,11 @@ export const useAnimationScenario = ({
   const reset = () => {
     if(debug) console.log('reset()')
     stepIndexRef.current = 0;
+    callingStepIndexRef.current = undefined;
     vibrationTriggered.current = false;
     setCurrentStepIndex(-1);
     holdResolver.current = undefined;
+    shouldStop.current = false;
 
     // 🧼 Reset each animated value to its initial state
     Object.entries(initialValues).forEach(([key, val]) => {
@@ -217,26 +259,11 @@ export const useAnimationScenario = ({
 
     const step = steps[stepIndexRef.current];
     if (!step) return;
+    if (shouldStop.current) return;
     await runStep(step, stepIndexRef.current);
     stepIndexRef.current++;
     if (stepIndexRef.current >= steps.length) stepIndexRef.current = 0;
   };
-
-  const TimelineView = () => (
-    <View style={styles.timeline}>
-      {stepLabels.map((label, index) => (
-        <Text
-          key={index}
-          style={[
-            styles.timelineLabel,
-            index === currentStepIndex && styles.timelineLabelActive,
-          ]}
-        >
-          {label}
-        </Text>
-      ))}
-    </View>
-  );
 
   return {
     refs: animatedRefs.current,
@@ -244,29 +271,7 @@ export const useAnimationScenario = ({
     stop,
     reset,
     nextStep,
-    TimelineView,
+    TimelineView: () => <Timeline stepLabels={stepLabels} currentStepIndex={currentStepIndex} />
   };
-};
 
-const styles = StyleSheet.create({
-  timeline: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    marginTop: 12,
-  },
-  timelineLabel: {
-    marginHorizontal: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: "#eee",
-    fontSize: 12,
-    color: "#888",
-  },
-  timelineLabelActive: {
-    backgroundColor: "#ffd700",
-    color: "#000",
-    fontWeight: "bold",
-  },
-});
+};

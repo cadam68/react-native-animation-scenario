@@ -24,6 +24,15 @@ Works with [React Native](https://reactnative.dev/) and [Expo](https://expo.dev)
 
 ---
 
+## 🔥 What's New in 1.3.0
+
+- ✅ `resume` step: jump back to the point after the last `goto()` call
+- ✅ `set` step: set a value directly or from a function
+- ✅ `stop` step: stop and reset the animation
+- ✅ `ifJump(condition, labelTrue, labelFalse?)` step: jump based on condition
+- 🛡 Label validation for `goto` and `ifJump` steps now included in scenario compilation
+- ⚙️ Cleaned and centralized all validation logic in `compileScenario()`
+
 ## 🔥 What's New in 1.2.0
 
 - ✅ `goto("label")` step: jump to a specific label in your scenario
@@ -45,17 +54,17 @@ npm install react-native-animation-scenario
 
 ## 📦 Exports
 ```
-useAnimationScenario();      // Main hook
-defineScenario([]);          // Safely define your scenario
-move(), delay(), callback(); // Step helpers
-useScreenLifecycle();        // Hook for screen focus lifecycle
+useAnimationScenario();             // Main hook
+defineScenario([]);                 // Safely define your scenario
+move(), delay(), callback(), ...    // Step helpers
+useScreenLifecycle();               // Hook for screen focus lifecycle
 ```
 
 ---
 
 ## 🛠 Usage
 
-```
+```js
 import {
   useAnimationScenario,
   defineScenario,
@@ -117,17 +126,21 @@ const MyComponent = () => {
 
 ## 🔧 Step Types
 
-| Type       | Description                                  |
-|------------|----------------------------------------------|
-| `move`     | Animate a ref value to a target              |
-| `delay`    | Pause for a given duration                   |
-| `parallel` | Animate multiple values simultaneously       |
-| `callback` | Run external logic (sync or async)           |
-| `vibrate`  | Trigger haptic feedback                      |
-| `hold`     | Pause animation until `nextStep()` is called |
-| `label`    | Mark jump targets                            |
-| `goto`     | Jump to a label                              |
-| `use`      | Insert a block                               |
+| Type       | Description                                   | Version | 
+|------------|-----------------------------------------------|---------|
+| `move`     | Animate a ref value to a target               | 1.0     |
+| `delay`    | Pause for a given duration                    | 1.0     |
+| `parallel` | Animate multiple values simultaneously        | 1.0     |
+| `callback` | Run external logic (sync or async)            | 1.0     |
+| `vibrate`  | Trigger haptic feedback                       | 1.0     |
+| `hold`     | Pause animation until `nextStep()` is called  | 1.0     |
+| `label`    | Mark jump targets                             | 1.2     |
+| `goto`     | Jump to a label                               | 1.2     |
+| `use`      | Insert a block                                | 1.2     |
+| `set`      | Set a value directly or from a function       | 1.3     |
+| `stop`     | Stop and reset the animation                  | 1.3     |
+| `resume`   | Continue from the point after last `goto()`   | 1.3     |
+| `ifJump`   | Conditionally jump to a label                 | 1.3     |
 
 ---
 
@@ -140,7 +153,7 @@ const MyComponent = () => {
 
 ## 🧩 Reusable Blocks
 
-```
+```js
 const blocks = {
 bounce: defineScenario([
 move("y", -30, 200),
@@ -158,10 +171,132 @@ use("bounce"),
 
 ---
 
+## 🤖 Conditional Branching with `ifJump()`
+
+Use `ifJump()` to dynamically choose the next step at runtime.
+
+```js
+const MyComponent = () => {
+  const directionRef = useRef(1);
+
+  const scenario = defineScenario([
+    hold(), // Wait for user input before branching
+    ifJump(() => directionRef.current === 1, "moveRight", "moveLeft"),
+    label("moveRight"),
+    move("x", 200, 500),
+    goto("resumePoint"),
+    label("moveLeft"),
+    move("x", 0, 500),
+    label("resumePoint"),
+  ]);
+
+  const { refs, start, nextStep } = useAnimationScenario({
+    scenario,
+    initialValues: { x: 100 },
+  });
+
+  useEffect(() => { start(); }, []);
+
+  return (
+    <View>
+      <Animated.View
+        style={{
+          width: 50,
+          height: 50,
+          backgroundColor: "blue",
+          transform: [{ translateX: refs.x }],
+          marginBottom: 20,
+        }}
+      />
+      <Text>Choose Direction:</Text>
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <Button title="Left" onPress={() => {
+          directionRef.current = 0;
+          nextStep();
+        }} />
+        <Button title="Right" onPress={() => {
+          directionRef.current = 1;
+          nextStep();
+        }} />
+      </View>
+    </View>
+  );
+};
+```
+
+## 🔁 `ifJump()` using a named callback
+You can define reusable branching logic in `callbacks`:
+
+```js
+const scenario = defineScenario([
+  hold(),
+  ifJump("checkDirection", "goRight", "goLeft"),
+  label("goRight"),
+  move("x", 100, 300),
+  goto("end"),
+  label("goLeft"),
+  move("x", -100, 300),
+  label("end"),
+]);
+
+const { refs, nextStep, start } = useAnimationScenario({
+  scenario,
+  initialValues: { x: 0 },
+  callbacks: {
+    checkDirection: () => Math.random() > 0.5,
+  },
+});
+```
+
+---
+
+## 🧪 Advanced Flow Example: `set`, `goto`, `resume`, and `stop`
+
+This scenario demonstrates how to use the new set, goto, resume, and stop steps for conditional or non-linear animation flows.
+
+```js
+import { useAnimationScenario,defineScenario, label, vibrate, move, goto, stop, set, resume } from "react-native-animation-scenario";
+
+const scenario = defineScenario([
+  label("start"),
+  vibrate(),
+  move("x", 100, 2000),
+  goto("reverse"),                          // Jump to reverse path
+  move("x", 200, 500, "after-resume"),      // Will resume here after `resume`
+  stop(),                                   // Stops the flow here
+  label("reverse"),
+  set("x", 0),                              // Instantly reset position
+  move("x", -100, 500),
+  resume(),   
+]);
+
+const MyComponent = () => {
+  const {refs,start,TimelineView,} = useAnimationScenario({
+    scenario,
+    initialValues: { x: 0, direction: 0 },
+    callbacks: {
+      checkDirection: () => {
+        // Example: dynamically decide to reverse
+        if (Math.random() > 0.5) return goto("reverse");
+      },
+    },
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ translateX: refs.x }] }} >
+      <Button title="Start" onPress={start} />
+      <TimelineView />
+    </Animated.View>
+  );
+};
+```
+
+---
+
 ## 🧪 Timeline Debug
 Add the TimelineView to display step progress:
 
-```
+```js
 <TimelineView /> <!-- Optional -->
 ```
 Great for development or visual debugging of onboarding flows.
@@ -178,6 +313,27 @@ Great for development or visual debugging of onboarding flows.
 MIT – Created by Cyril Adam
 
 ---
+
+## 📜 CHANGELOG for `v1.3.0`
+
+### ✨ Added
+
+- `set(target, value)`: set a ref value directly, from a function, or from an async callback
+- `stop()`: terminates the current animation sequence cleanly
+- `resume()`: continues execution from the step after the last `goto()` jump
+- `ifJump(condition, labelTrue, labelFalse?)`: conditional branching based on a sync or async function or a callback name
+- Scenario validation now checks label existence for `goto` and `ifJump`
+- Improved label jump tracking with `callingStepIndexRef` for `resume()
+
+## 🐞 Fixed
+- Ensured `nextStep()` respects the `shouldStop` flag
+- Cleaned up validation logic (moved to `compileScenario`)
+- Deduplicated validation errors for clearer debug output
+
+## 🧪 Testing
+- New unit test coverage for scenario compilation including nested `use() blocks and label resolution.
+- Some validation moved from runtime to compile-time, simplifying runtime hook logic.
+
 
 ## 📜 CHANGELOG for `v1.2.0`
 

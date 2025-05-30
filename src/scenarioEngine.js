@@ -40,6 +40,21 @@ export const goto = (label) => Object.freeze({
   type: "goto", ...(label ? { label } : {})
 });
 
+export const set = (target, value) => Object.freeze({
+  type: "set", target, value
+});
+
+export const resume = () => Object.freeze({
+  type: "resume"
+});
+
+export const stop = () => Object.freeze({
+  type: "stop"
+});
+
+export const ifJump = (condition, labelTrue, labelFalse) => Object.freeze({
+  type: "ifJump", condition, labelTrue, ...(labelFalse ? { labelFalse } : {})
+});
 
 // === Scenario Wrapper ===
 export const defineScenario = (steps) => {
@@ -51,7 +66,7 @@ export const defineScenario = (steps) => {
 // === Load from String with Sandboxing ===
 export const loadScenarioFromString = (code) => {
   const fn = new Function(
-    "defineScenario", "move", "delay", "callback", "vibrate", "parallel", "hold", "label", "comment", "use", "goto"
+    "defineScenario", "move", "delay", "callback", "vibrate", "parallel", "hold", "label", "comment", "use", "goto", "set", "resume", "stop", "ifJump"
       `return ${code};`
   );
 
@@ -66,7 +81,11 @@ export const loadScenarioFromString = (code) => {
     Object.freeze(label),
     Object.freeze(comment),
     Object.freeze(use),
-    Object.freeze(goto)
+    Object.freeze(goto),
+    Object.freeze(set),
+    Object.freeze(resume),
+    Object.freeze(stop),
+    Object.freeze(ifJump)
   );
 
   if (!Array.isArray(result)) throw new Error("Scenario must be an array");
@@ -86,6 +105,8 @@ export const playScenario = (rawCode, verbose = false) => {
         label: s.label || "",
         target: s.target || s.targets?.map(t => t.target).join(",") || "",
         to: s.to ?? "",
+        name: s.name || "",
+        value: s.value || "",
       })));
     }
     return scenario;

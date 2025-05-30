@@ -15,7 +15,7 @@ test("step1.1 - compileScenario returns correct labels and step order", () => {
     label("end"),
   ];
 
-  const { steps, labels } = compileScenario(scenario);
+  const { steps, labels } = compileScenario(scenario, { initialValues : { opacity: 0 }});
 
   expect(labels).toEqual({ start: 0, end: 3 });
   expect(steps).toHaveLength(4);
@@ -36,7 +36,7 @@ test("step1.2 - throws error for duplicate labels", () => {
     label("start"), // duplicate!
   ]);
 
-  expect(() => compileScenario(scenario)).toThrow("Duplicate label 'start'");
+  expect(() => compileScenario(scenario, { initialValues : { opacity: 0 }} )).toThrow("Duplicate label 'start'");
 });
 
 
@@ -46,7 +46,7 @@ test("step1.2 - throws error for label without string name", () => {
     { type: "label", label: 123 }, // not a string
   ]);
 
-  expect(() => compileScenario(scenario)).toThrow("Label must have a string name");
+  expect(() => compileScenario(scenario, {} )).toThrow("Label must have a string name");
 });
 
 
@@ -57,7 +57,7 @@ test("step1.2 - includes comment steps in the output", () => {
     move("opacity", 1, 500),
   ]);
 
-  const { steps } = compileScenario(scenario);
+  const { steps } = compileScenario(scenario, { initialValues : { opacity: 0 }} );
   expect(steps[1]).toEqual(expect.objectContaining({ type: "comment", comment: "this is a test" }));
 });
 
@@ -84,7 +84,7 @@ test("step2.1 - expands use('glow') block into main scenario", () => {
     move("opacity", 1, 500, "mainMove"),
   ]);
 
-  const { steps, labels } = compileScenario(scenario, { blocks });
+  const { steps, labels } = compileScenario(scenario, { blocks, initialValues : { opacity: 0, glowOpacity: 0} });
 
   expect(steps).toHaveLength(4);
 
@@ -120,7 +120,7 @@ test("step2.2 - can reuse same block multiple times", () => {
     use("pulse"),
   ]);
 
-  const { steps } = compileScenario(scenario, { blocks });
+  const { steps } = compileScenario(scenario, { blocks, initialValues : {scale: 1}});
 
   expect(steps).toHaveLength(4);
   expect(steps[0]).toEqual(expect.objectContaining({ target: "scale", to: 1.2 }));
@@ -145,7 +145,7 @@ test("step2.3 - throws error if a block contains a label already defined in the 
     move("opacity", 0, 300),
   ]);
 
-  expect(() => compileScenario(scenario, { blocks }))
+  expect(() => compileScenario(scenario, { blocks , initialValues : {opacity: 0}}))
     .toThrow("Duplicate label 'start'");
 });
 
@@ -164,7 +164,7 @@ test("step2.4 - compileScenario flattens blocks and preserves labels", () => {
     label("end"),
   ]);
 
-  const { steps, labels } = compileScenario(scenario, { blocks });
+  const { steps, labels } = compileScenario(scenario, { blocks, initialValues : {x:0} });
 
   // console.log(steps);
   // console.log(labels);
@@ -198,7 +198,7 @@ test("step3.0 - goto jumps to labeled step", () => {
     goto("start"),
   ]);
 
-  const { steps, labels } = compileScenario(scenario);
+  const { steps, labels } = compileScenario(scenario, { initialValues: {x:0}});
   // console.log(steps);
   expect(labels.start).toBe(0);
   expect(steps[2]).toEqual({ type: "goto", label: "start" });

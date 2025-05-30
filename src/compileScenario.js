@@ -1,62 +1,95 @@
 
-export function compileScenario(scenario, { blocks = {} } = {}) {
-  if (!Array.isArray(scenario)) {
-    throw new Error("Scenario must be an array");
-  }
-
+export const compileScenario = (scenario, { blocks = {}, callbacks = {}, initialValues = {} } = {}, throughErrors = true) => {
   const steps = [];
   const labels = {};
   const labelSet = new Set();
+  const validationErrors = [];
 
-  // Internal recursive function to flatten scenario + blocks
   function flatten(input, sourceBlock = null) {
     for (const step of input) {
       if (!step || typeof step !== "object") {
-        throw new Error("Invalid step in scenario");
+        validationErrors.push(`Invalid step in scenario : ${JSON.stringify(step)}`);
+        continue;
       }
 
-      // Expand use("blockName")
       if (step.type === "use") {
-        const blockName = step.block;
-        const block = blocks?.[blockName];
-
+        const block = blocks?.[step.block];
         if (!block) {
-          throw new Error(`[compileScenario] Block '${blockName}' not found`);
+          validationErrors.push(`Block '${step.block}' not found`);
+          continue;
         }
-
-        flatten(block, blockName); // recurse with block name
+        flatten(block, step.block); // recurse
         continue;
       }
 
       if (step.type === "label") {
-        const labelName = step.label;
-        if (!labelName || typeof labelName !== "string") {
-          throw new Error(`Label must have a string name`);
+        if (!step.label || typeof step.label !== "string") {
+          validationErrors.push(`Label must have a string name: ${JSON.stringify(step)}`);
+          continue;
         }
-        if (labelSet.has(labelName)) {
-          throw new Error(`Duplicate label '${labelName}' found`);
+        if (labelSet.has(step.label)) {
+          validationErrors.push(`Duplicate label '${step.label}'`);
+          continue;
         }
-        labelSet.add(labelName);
-
-        // Only register top-level labels into the returned labels object
+        labelSet.add(step.label);
         if (sourceBlock === null) {
-          labels[labelName] = steps.length;
+          labels[step.label] = steps.length;
         }
       }
 
-      // Clone step and attach __sourceBlock if coming from a block
-      const annotated = sourceBlock
-        ? { ...step, __sourceBlock: sourceBlock }
-        : step;
+      if (step.type === "ifJump") {
+        if (typeof step.condition !== "function" && typeof step.condition !== "string" ) {
+          validationErrors.push(`ifJump must include a valid condition function.`);
+        }
+        if (!step.labelTrue || typeof step.labelTrue !== "string") {
+          validationErrors.push(`ifJump requires a valid labelTrue.`);
+        }
+        if (step.labelFalse && typeof step.labelFalse !== "string") {
+          validationErrors.push(`ifJump: labelFalse must be a string if provided.`);
+        }
+      }
 
+      const annotated = sourceBlock ? { ...step, __sourceBlock: sourceBlock } : step;
       steps.push(annotated);
     }
   }
 
   flatten(scenario);
 
-  return {
-    steps,
-    labels,
-  };
-}
+  // Validate refs and callbacks
+  const seenRefs = new Set(Object.keys(initialValues));
+  const seenCallbacks = new Set(Object.keys(callbacks));
+
+  for (const step of steps) {
+    const targets = step.target
+      ? [step.target]
+      : Array.isArray(step.targets)
+        ? step.targets.map(t => t.target)
+        : [];
+
+    targets.forEach(t => {
+      if (!seenRefs.has(t)) {
+        validationErrors.push(`Missing initial value for target: ${t}`);
+      }
+    });
+
+    if (step.type === "callback" && !seenCallbacks.has(step.name)) {
+      validationErrors.push(`Missing callback function: ${step.name}`);
+    }
+  }
+
+  // validate exising label used by goto and ifJump
+  const seenLabels = new Set(Object.keys(labels));
+  steps.filter(step => step.type === "goto" || step.type === "ifJump").forEach(step => {
+    if(step.type === "goto" && !seenLabels.has(step.label)) validationErrors.push(`Missing label : ${step.label}`);
+    if(step.type === "ifJump" && !seenLabels.has(step.labelTrue)) validationErrors.push(`Missing label : ${step.labelTrue}`);
+    if(step.type === "ifJump" && step.labelFalse && !seenLabels.has(step.labelFalse)) validationErrors.push(`Missing label : ${step.labelFalse}`);
+  });
+
+  if(throughErrors && validationErrors.length) {
+    const messages = [...new Set(validationErrors)].map(e => `• ${e}`).join("\n");
+    throw new Error(`Scenario validation failed:\n${messages}`);
+  }
+
+  return { steps, labels, validationErrors };
+};
