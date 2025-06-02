@@ -1,8 +1,25 @@
 
 // === Step Helpers ===
-export const move = (target, to, duration, label, easing, native = true) => Object.freeze({
-  type: "move", target, to, duration, ...(label ? { label } : {}), ...(easing ? { easing } : {}), native
+
+/*
+move("x", 100, 500);                         // Absolute
+move("x", inc(50), 500);                     // Relative forward
+move("x", dec(30), 300);                     // Relative backward
+move("x", 200, 500, "slideBack");            // With label
+move("x", 150, 400, null, { easing: Easing.inOut(Easing.quad), native: false }); // Advanced
+ */
+export const move = (target, to, duration, label, options = {}) =>  Object.freeze({
+  type: "move",
+  target,
+  to,
+  duration,
+  ...(label ? { label } : {}),
+  ...(options.easing ? { easing: options.easing } : {}),
+  ...(options.native !== undefined ? { native: options.native } : {}),
 });
+
+export const inc = (value) => Object.freeze({ type: "inc", value });
+export const dec = (value) => Object.freeze({ type: "dec", value: value });
 
 export const delay = (duration, label) => Object.freeze({
   type: "delay", duration, ...(label ? { label } : {})
@@ -16,8 +33,8 @@ export const vibrate = (label) => Object.freeze({
   type: "vibrate", ...(label ? { label } : {})
 });
 
-export const callback = (name, label) => Object.freeze({
-  type: "callback", name, ...(label ? { label } : {})
+export const callback = (name, value, label) => Object.freeze({
+  type: "callback", name, ...(value !== undefined ? { value } : {}), ...(label ? { label } : {})
 });
 
 export const hold = (label) => Object.freeze({
@@ -56,6 +73,17 @@ export const ifJump = (condition, labelTrue, labelFalse) => Object.freeze({
   type: "ifJump", condition, labelTrue, ...(labelFalse ? { labelFalse } : {})
 });
 
+export const ifThen = (condition) => Object.freeze({
+  type: "ifThen", condition
+});
+
+export const ifElse = () => Object.freeze({
+  type: "ifElse"
+});
+
+export const ifEnd = () => Object.freeze({
+  type: "ifEnd"
+});
 // === Scenario Wrapper ===
 export const defineScenario = (steps) => {
   if (!Array.isArray(steps)) throw new Error("defineScenario() requires an array");
@@ -66,13 +94,15 @@ export const defineScenario = (steps) => {
 // === Load from String with Sandboxing ===
 export const loadScenarioFromString = (code) => {
   const fn = new Function(
-    "defineScenario", "move", "delay", "callback", "vibrate", "parallel", "hold", "label", "comment", "use", "goto", "set", "resume", "stop", "ifJump"
+    "defineScenario", "move", "delay", "callback", "vibrate", "parallel", "hold", "label", "comment", "use", "goto", "set", "resume", "stop", "ifJump", "inc", "dec", "ifThen", "ifElse", "ifEnd"
       `return ${code};`
   );
 
   const result = fn(
     Object.freeze(defineScenario),
     Object.freeze(move),
+    Object.freeze(inc),
+    Object.freeze(dec),
     Object.freeze(delay),
     Object.freeze(callback),
     Object.freeze(vibrate),
@@ -85,7 +115,10 @@ export const loadScenarioFromString = (code) => {
     Object.freeze(set),
     Object.freeze(resume),
     Object.freeze(stop),
-    Object.freeze(ifJump)
+    Object.freeze(ifJump),
+    Object.freeze(ifThen),
+    Object.freeze(ifElse),
+    Object.freeze(ifEnd)
   );
 
   if (!Array.isArray(result)) throw new Error("Scenario must be an array");

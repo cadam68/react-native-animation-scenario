@@ -8,6 +8,8 @@ import { useCallback } from "react";
  *     useCallback(() => {}, []),
  *     useCallback(() => { stop() }, [])
  *   );
+ *
+ *   import { useScreenLifecycle } from 'react-native-animation-scenario/useScreenLifecycle';
  */
 export const useScreenLifecycle = (onFocus = () => {}, onBlur = () => {}) => {
   useFocusEffect(

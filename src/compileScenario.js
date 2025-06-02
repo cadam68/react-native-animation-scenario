@@ -86,6 +86,31 @@ export const compileScenario = (scenario, { blocks = {}, callbacks = {}, initial
     if(step.type === "ifJump" && step.labelFalse && !seenLabels.has(step.labelFalse)) validationErrors.push(`Missing label : ${step.labelFalse}`);
   });
 
+  // validation for ifThen / else / endIf
+  const stack = [];
+
+  steps.forEach((step, i) => {
+    if (step.type === "ifThen") {
+      stack.push({ type: "ifThen", index: i });
+    } else if (step.type === "ifElse") {
+      if (stack.length === 0 || stack[stack.length - 1].type !== "ifThen") {
+        validationErrors.push(`"ifElse" at step ${i} has no matching "ifThen"`);
+      } else {
+        stack[stack.length - 1].hasElse = true;
+      }
+    } else if (step.type === "ifEnd") {
+      if (stack.length === 0 || stack[stack.length - 1].type !== "ifThen") {
+        validationErrors.push(`"ifEnd" at step ${i} has no matching "ifThen"`);
+      } else {
+        stack.pop();
+      }
+    }
+  });
+  if (stack.length > 0) {
+    stack.forEach(entry => validationErrors.push(`Unclosed "ifThen" at step ${entry.index}`));
+  }
+
+  // Error management
   if(throughErrors && validationErrors.length) {
     const messages = [...new Set(validationErrors)].map(e => `• ${e}`).join("\n");
     throw new Error(`Scenario validation failed:\n${messages}`);

@@ -9,7 +9,7 @@ Works with [React Native](https://reactnative.dev/) and [Expo](https://expo.dev)
 ## ✨ Features
 
 - ✅ Declarative animation timeline with step-by-step control
-- 🧠 Supports `move`, `delay`, `parallel`, `callback`, `vibrate`, `hold`, `label`, `goto` and `use` steps
+- 🧠 Supports `set`, `move`, `delay`, `parallel`, `callback`, `vibrate`, `hold`, `label`, `goto`, `resume`, `use`, `ifJump`, `ifThen` and `use` steps
 - 🎛 Works in both `"auto"` and `"manual"` step modes
 - 🔁 Loopable scenarios
 - 📦 Minimal dependencies – just React Native + Animated
@@ -23,6 +23,25 @@ Works with [React Native](https://reactnative.dev/) and [Expo](https://expo.dev)
 [Snack demo on Expo](https://snack.expo.dev/@cadam68/animation-demo)
 
 ---
+
+## 🔥 What's New in 1.4.0
+
+- ✅ `ifThen`, `ifElse`, `ifEnd`: New block-style conditional logic, familiar to developers. Example:
+```
+ifThen(() => score.current > 5),
+  move("x", 100, 500),
+ifElse(),
+  move("x", -100, 500),
+ifEnd()
+```
+- ✅ Nested conditionals are supported and validated at compile time.
+- ✅ Improved compiler validation to detect malformed blocks or unclosed conditionals.
+- ✅ Relative values in `move()` using helper functions like `inc(value)` or `dec(value)`. Example:
+```
+move("x", inc(50), 500)
+```
+- ✅ Arguments in `callback()` steps now supported.
+- ✅ Jump to label in `nextStep(label)`: You can resume or redirect flow from UI or interaction code.
 
 ## 🔥 What's New in 1.3.0
 
@@ -125,21 +144,22 @@ const MyComponent = () => {
 
 ## 🔧 Step Types
 
-| Type       | Description                                   | Version | 
-|------------|-----------------------------------------------|---------|
-| `move`     | Animate a ref value to a target               | 1.0     |
-| `delay`    | Pause for a given duration                    | 1.0     |
-| `parallel` | Animate multiple values simultaneously        | 1.0     |
-| `callback` | Run external logic (sync or async)            | 1.0     |
-| `vibrate`  | Trigger haptic feedback                       | 1.0     |
-| `hold`     | Pause animation until `nextStep()` is called  | 1.0     |
-| `label`    | Mark jump targets                             | 1.2     |
-| `goto`     | Jump to a label                               | 1.2     |
-| `use`      | Insert a block                                | 1.2     |
-| `set`      | Set a value directly or from a function       | 1.3     |
-| `stop`     | Stop and reset the animation                  | 1.3     |
-| `resume`   | Continue from the point after last `goto()`   | 1.3     |
-| `ifJump`   | Conditionally jump to a label                 | 1.3     |
+| Type       | Description                                  | Version | 
+|------------|----------------------------------------------|---------|
+| `move`     | Animate a ref value to a target              | 1.0     |
+| `delay`    | Pause for a given duration                   | 1.0     |
+| `parallel` | Animate multiple values simultaneously       | 1.0     |
+| `callback` | Run external logic (sync or async)           | 1.0     |
+| `vibrate`  | Trigger haptic feedback                      | 1.0     |
+| `hold`     | Pause animation until `nextStep()` is called | 1.0     |
+| `label`    | Mark jump targets                            | 1.2     |
+| `goto`     | Jump to a label                              | 1.2     |
+| `use`      | Insert a block                               | 1.2     |
+| `set`      | Set a value directly or from a function      | 1.3     |
+| `stop`     | Stop and reset the animation                 | 1.3     |
+| `resume`   | Continue from the point after last `goto()`  | 1.3     |
+| `ifJump`   | Conditionally jump to a label                | 1.3     |
+| `ifThen`   | Block-style conditional logic                | 1.4     |
 
 ---
 
@@ -313,7 +333,7 @@ Great for development or visual debugging of onboarding flows.
 This helper hook requires `@react-navigation/native` and should be imported separately:
 
 ```js
-import { useScreenLifecycle } from 'react-native-animation-scenario/useScreenLifecycle';
+import { useScreenLifecycle } from 'react-native-animation-scenario/src/useScreenLifecycle';
 ``` 
 
 It allows you to trigger logic when the screen gains or loses focus.
@@ -325,9 +345,28 @@ MIT – Created by Cyril Adam
 
 ---
 
+## 📜 CHANGELOG for `v1.4.0`
+
+### ✨ Added
+- `ifThen(condition)`, ìfElse()`, ìfEnd()` block structure: familiar conditional logic using nested blocks.
+- `nextStep(label)`: allows you to jump to a specific label manually, even after a `hold()` step.
+- `move(...)` now supports relative values using `inc(x)` and `dec(x)`.
+- Extended support for `callback()` to accept parameters, including dynamic values.
+- Scenario validation (`compileScenario`) now checks for properly closed `ifThen/ifElse/ifEnd` blocks.
+- Modular refactoring for better extensibility.
+
+### 🐞 Fixed
+- Ensured `ifJump() does not rely on refs directly from `defineScenario()`.
+- Improved safety and label resolution for nested conditional logic.
+- Fixed corner cases in `hold()` + jump logic for `nextStep().
+
+### 🧪 Testing
+- Jest tests added for malformed conditional structures (`ifThen` without `ifEnd`, duplicate `ifElse`, etc.)
+- Unit tests extended to cover relative moves.
+
 ## 📜 CHANGELOG for `v1.3.1`
 
-## 🐞 Fixed
+### 🐞 Fixed
 - Move useScreenLifecycle to a separate export to avoid dependency issues on Snack
 
 
@@ -342,12 +381,12 @@ MIT – Created by Cyril Adam
 - Scenario validation now checks label existence for `goto` and `ifJump`
 - Improved label jump tracking with `callingStepIndexRef` for `resume()
 
-## 🐞 Fixed
+### 🐞 Fixed
 - Ensured `nextStep()` respects the `shouldStop` flag
 - Cleaned up validation logic (moved to `compileScenario`)
 - Deduplicated validation errors for clearer debug output
 
-## 🧪 Testing
+### 🧪 Testing
 - New unit test coverage for scenario compilation including nested `use() blocks and label resolution.
 - Some validation moved from runtime to compile-time, simplifying runtime hook logic.
 

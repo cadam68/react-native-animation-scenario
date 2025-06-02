@@ -1,5 +1,5 @@
 import { compileScenario } from "../src/compileScenario.js";
-import { label, comment, move, defineScenario, use, delay, goto } from "../src/scenarioEngine.js";
+import { label, comment, move, defineScenario, use, delay, goto, ifThen, ifElse, ifEnd } from "../src/scenarioEngine.js";
 import * as assert from "node:assert";
 
 /* run :
@@ -23,8 +23,7 @@ test("step1.1 - compileScenario returns correct labels and step order", () => {
     type: "move",
     target: "opacity",
     to: 1,
-    duration: 500,
-    native: true,
+    duration: 500
   });
 });
 
@@ -202,5 +201,50 @@ test("step3.0 - goto jumps to labeled step", () => {
   // console.log(steps);
   expect(labels.start).toBe(0);
   expect(steps[2]).toEqual({ type: "goto", label: "start" });
+});
+
+test("step4.0 - throws error for ifThen without endIf", () => {
+  const scenario = defineScenario([
+    ifThen(() => true),
+    label("doSomething"),
+  ]);
+  expect(() => compileScenario(scenario)).toThrow(/Unclosed \"ifThen\"/);
+});
+
+test("step4.0 - throws error for else without ifThen", () => {
+  const scenario = defineScenario([
+    ifElse(),
+    ifEnd(),
+  ]);
+  expect(() => compileScenario(scenario)).toThrow(/no matching \"ifThen\"/);
+});
+
+test("step4.0 - throws error for endIf without ifThen", () => {
+  const scenario = defineScenario([
+    label("something"),
+    ifEnd(),
+  ]);
+  expect(() => compileScenario(scenario)).toThrow(/no matching \"ifThen\"/);
+});
+
+test("step4.0 - throws error for nested ifThen without closing", () => {
+  const scenario = defineScenario([
+    ifThen(() => true),
+    ifThen(() => false),
+    ifElse(),
+    ifEnd(), // missing outer endIf
+  ]);
+  expect(() => compileScenario(scenario)).toThrow(/Unclosed \"ifThen\"/);
+});
+
+test("step4.0 - passes for correctly nested ifThen-else-endIf", () => {
+  const scenario = defineScenario([
+    ifThen(() => true),
+    label("doThis"),
+    ifElse(),
+    label("doThat"),
+    ifEnd()
+  ]);
+  expect(() => compileScenario(scenario)).not.toThrow();
 });
 

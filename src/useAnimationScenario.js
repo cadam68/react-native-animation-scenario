@@ -51,15 +51,31 @@ export const useAnimationScenario = ({
 
   const stepLabels = steps.map((s, i) => s.label || s.name || `${s.type}-${i}`);
 
+  const jumpTo = (steps, startIndex, startType, endTypes,) => {
+    let depth = 0;
+    for (let i = startIndex + 1; i < steps.length; i++) {
+      const s = steps[i];
+      if (s.type === startType) depth++;
+      else if (s.type === endTypes.slice(-1)[0] && depth > 0) depth--;
+      else if (endTypes.includes(s.type) && depth === 0) {
+        return i + 1;
+      }
+    }
+    return steps.length; // fallback: jump to end if not found
+  };
+
   const runStep = useCallback(async (step, index) => {
     setCurrentStepIndex(index);
 
     switch (step.type) {
       case "move":
       case "timing": {
+        let toValue = step.to;
+        if (typeof toValue === "object" && toValue.type === "inc") toValue = animatedRefs.current[step.target].__getValue() + toValue.value;
+        if (typeof toValue === "object" && toValue.type === "dec") toValue = animatedRefs.current[step.target].__getValue() - toValue.value;
         await new Promise(res =>
           Animated.timing(animatedRefs.current[step.target], {
-            toValue: step.to,
+            toValue,
             duration: step.duration,
             useNativeDriver: step.native !== false,
             easing: step.easing,
@@ -105,7 +121,7 @@ export const useAnimationScenario = ({
         // Async functions (like () => await doSomething()) to pause animation until completion
         const fn = callbacks[step.name];
         if (fn) {
-          const result = fn();  // might return a promise
+          const result = step.hasOwnProperty("value") ? fn(step.value) : fn();  // might return a promise
           if (result instanceof Promise) await result; // wait only if it's async
         } else console.warn(`[useAnimationScenario] Callback "${step.name}" not found.`);
         break;
@@ -191,6 +207,29 @@ export const useAnimationScenario = ({
         break;
       }
 
+      case "ifThen": {
+        let result;
+        const fn = typeof step.condition === "string" ? callbacks[step.condition] : step.condition;
+        if (!fn) {
+          console.warn(`[useAnimationScenario] Missing condition function "${step.condition}"`);
+          break;
+        }
+        result = fn();
+        if (result instanceof Promise) result = await result;
+        if (!result) {
+          stepIndexRef.current = jumpTo(steps, index, "ifThen", ["ifElse", "ifEnd"]);
+          return "jumped";
+        }
+        break;
+      }
+
+      case "ifElse": {
+        stepIndexRef.current = jumpTo(steps, index, "ifThen", ["ifEnd"]);
+        return "jumped";
+      }
+
+      case "ifEnd":
+        break;
 
       default:
         console.warn(`[useAnimationScenario] Unknown step type "${step.type}"`);
@@ -248,7 +287,15 @@ export const useAnimationScenario = ({
     });
   };
 
-  const nextStep = async () => {
+  const nextStep = async (targetLabel = undefined) => {
+
+    // Jump to the provided target
+    if(typeof targetLabel === "string" && targetLabel !== undefined) {
+      const targetIndex = labels[targetLabel];
+      if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
+      stepIndexRef.current = targetIndex;
+    }
+
     // If paused on hold, resume it
     if (holdResolver.current) {
       const resume = holdResolver.current;
@@ -274,4 +321,4 @@ export const useAnimationScenario = ({
     TimelineView: () => <Timeline stepLabels={stepLabels} currentStepIndex={currentStepIndex} />
   };
 
-};
+  };
