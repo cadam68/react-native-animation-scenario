@@ -8,7 +8,7 @@ move("x", dec(30), 300);                     // Relative backward
 move("x", 200, 500, "slideBack");            // With label
 move("x", 150, 400, null, { easing: Easing.inOut(Easing.quad), native: false }); // Advanced
  */
-export const move = (target, to, duration, label, options = {}) =>  Object.freeze({
+export const move = (target, to, duration, label = undefined, options = {}) =>  Object.freeze({
   type: "move",
   target,
   to,

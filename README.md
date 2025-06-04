@@ -24,6 +24,11 @@ Works with [React Native](https://reactnative.dev/) and [Expo](https://expo.dev)
 
 ---
 
+## 🔥 What's New in 1.4.1 `Patch Release`
+
+- 🛠 Fixed an issue where the `stop() step didn’t always correctly interrupt the scenario execution.
+- ✅ Improved overall code structure and performance with internal refactoring.
+
 ## 🔥 What's New in 1.4.0
 
 - ✅ `ifThen`, `ifElse`, `ifEnd`: New block-style conditional logic, familiar to developers. Example:
@@ -344,6 +349,20 @@ It allows you to trigger logic when the screen gains or loses focus.
 MIT – Created by Cyril Adam
 
 ---
+
+## 📦 CHANGELOG for `v1.4.1`
+
+### 🔧 Fixes
+- Fixed a bug where the `stop()` step didn't correctly interrupt scenario execution in all cases.
+- Improved internal handling of the `shouldStop` flag to prevent race conditions and ensure proper reset behavior.
+- `reset()` now explicitly clears `holdResolver` and `callingStepIndexRef`, making the scenario restart more predictable and clean.
+- Minor log improvements under debug mode.
+
+### 💡 Internal Improvements
+- Factored out reusable logic into `evalStepValue()` and `evalStepCondition()` to unify async/sync step evaluation across `set`, `ifThen`, and `callback` steps.
+- Jump logic now centralized via `jumpTo()` utility, ensuring consistent block traversal across `ifThen`, `ifElse`, and `ifEnd`.
+- Internal state handling made more robust for future scalability and debugging ease.
+
 
 ## 📜 CHANGELOG for `v1.4.0`
 

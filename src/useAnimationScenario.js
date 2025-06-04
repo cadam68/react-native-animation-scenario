@@ -51,6 +51,31 @@ export const useAnimationScenario = ({
 
   const stepLabels = steps.map((s, i) => s.label || s.name || `${s.type}-${i}`);
 
+  const evalStepValue = async (stepValue) => {
+    let result = undefined;
+    let fn;
+
+    if (typeof stepValue === "string" && callbacks[stepValue]) fn = callbacks[stepValue];
+    if (!fn && typeof stepValue === "function") fn = stepValue;
+    if (fn) {
+      result = fn();
+      if (result instanceof Promise) result = await result;
+    } else result = stepValue;
+    return result;
+  }
+
+  const evalStepCondition = async (stepCondition) => {
+    let result = undefined;
+    const fn = typeof stepCondition === "string" ? callbacks[stepCondition] : stepCondition;
+    if (fn && typeof fn === "function") {
+      result = fn();
+      if (result instanceof Promise) result = await result;
+    } else {
+      console.warn(`[useAnimationScenario] Missing condition function "${stepCondition}"`);
+    }
+    return result;
+  }
+
   const jumpTo = (steps, startIndex, startType, endTypes,) => {
     let depth = 0;
     for (let i = startIndex + 1; i < steps.length; i++) {
@@ -70,7 +95,7 @@ export const useAnimationScenario = ({
     switch (step.type) {
       case "move":
       case "timing": {
-        let toValue = step.to;
+        let toValue = await evalStepValue(step.to);
         if (typeof toValue === "object" && toValue.type === "inc") toValue = animatedRefs.current[step.target].__getValue() + toValue.value;
         if (typeof toValue === "object" && toValue.type === "dec") toValue = animatedRefs.current[step.target].__getValue() - toValue.value;
         await new Promise(res =>
@@ -101,7 +126,8 @@ export const useAnimationScenario = ({
       }
 
       case "delay": {
-        await new Promise(res => setTimeout(res, step.duration));
+        let duration = await evalStepValue(step.duration);
+        await new Promise(res => setTimeout(res, duration));
         break;
       }
 
@@ -151,19 +177,10 @@ export const useAnimationScenario = ({
         break;
 
       case "set": {
-        let result;
-        let fn;
-
-        if (typeof step.value === "string" && callbacks[step.value]) fn = callbacks[step.value];
-        if (!fn && typeof step.value === "function") fn = step.value;
-        if (fn) {
-          result = fn();
-          if (result instanceof Promise) result = await result;
-        } else result = step.value;
-
+        let stepValue = await evalStepValue(step.value);
         const ref = animatedRefs.current[step.target];
         if (!ref) throw new Error(`Unknown ref: ${step.target}`);
-        ref.setValue(result);
+        ref.setValue(stepValue);
         break;
       }
 
@@ -188,35 +205,22 @@ export const useAnimationScenario = ({
       }
 
       case "ifJump": {
-        let result;
-        const fn = typeof step.condition === "string" ? callbacks[step.condition] : step.condition;
-        if (!fn) {
-          console.warn(`[useAnimationScenario] Missing condition function "${step.condition}"`);
-          break;
-        }
-        result = fn();
-        if (result instanceof Promise) result = await result;
-        const targetLabel = result ? step.labelTrue : step.labelFalse;
-
-        if (targetLabel) {
-          const targetIndex = labels[targetLabel];
-          if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
-          stepIndexRef.current = targetIndex;
-          return "jumped";
+        const result = await evalStepCondition(step.condition);
+        if (result !== undefined) {
+          const targetLabel = result ? step.labelTrue : step.labelFalse;
+          if (targetLabel) {
+            const targetIndex = labels[targetLabel];
+            if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
+            stepIndexRef.current = targetIndex;
+            return "jumped";
+          }
         }
         break;
       }
 
       case "ifThen": {
-        let result;
-        const fn = typeof step.condition === "string" ? callbacks[step.condition] : step.condition;
-        if (!fn) {
-          console.warn(`[useAnimationScenario] Missing condition function "${step.condition}"`);
-          break;
-        }
-        result = fn();
-        if (result instanceof Promise) result = await result;
-        if (!result) {
+        const result = await evalStepCondition(step.condition);
+        if (result !== undefined && !result) {
           stepIndexRef.current = jumpTo(steps, index, "ifThen", ["ifElse", "ifEnd"]);
           return "jumped";
         }
@@ -237,12 +241,12 @@ export const useAnimationScenario = ({
   }, [steps]);
 
   const runAuto = useCallback(async () => {
-    vibrationTriggered.current = false;
-    stepIndexRef.current = 0;
-    callingStepIndexRef.current = undefined;
-    shouldStop.current = false;
 
     const run = async () => {
+      vibrationTriggered.current = false;
+      stepIndexRef.current = 0;
+      callingStepIndexRef.current = undefined;
+
       while (stepIndexRef.current < steps.length && !shouldStop.current) {
         const currentIndex = stepIndexRef.current;
         const result = await runStep(steps[currentIndex], currentIndex);
@@ -252,24 +256,22 @@ export const useAnimationScenario = ({
       }
     };
 
-    if (loop) {
-      while (!shouldStop.current) await run();
-    } else {
-      await run();
-    }
+    shouldStop.current = false;
+    if (loop) while (!shouldStop.current) await run();
+    else await run();
   }, [steps]);
 
-  const start = () => {
+  const start = useCallback(() => {
     if (mode !== "manual") runAuto();
-  };
+  }, [mode, runAuto]);
 
-  const stop = () => {
+  const stop = useCallback(() => {
+    reset();
     if(debug) console.log('stop()')
     shouldStop.current = true;
-    reset();
-  };
+  }, []);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     if(debug) console.log('reset()')
     stepIndexRef.current = 0;
     callingStepIndexRef.current = undefined;
@@ -285,9 +287,9 @@ export const useAnimationScenario = ({
         animatedValue.setValue(val);
       }
     });
-  };
+  }, []);
 
-  const nextStep = async (targetLabel = undefined) => {
+  const nextStep = useCallback(async (targetLabel = undefined) => {
 
     // Jump to the provided target
     if(typeof targetLabel === "string" && targetLabel !== undefined) {
@@ -310,7 +312,7 @@ export const useAnimationScenario = ({
     await runStep(step, stepIndexRef.current);
     stepIndexRef.current++;
     if (stepIndexRef.current >= steps.length) stepIndexRef.current = 0;
-  };
+  }, [steps]);
 
   return {
     refs: animatedRefs.current,
@@ -321,4 +323,4 @@ export const useAnimationScenario = ({
     TimelineView: () => <Timeline stepLabels={stepLabels} currentStepIndex={currentStepIndex} />
   };
 
-  };
+};
