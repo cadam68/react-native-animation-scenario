@@ -153,7 +153,7 @@ const MyComponent = () => {
 |------------|----------------------------------------------|---------|
 | `move`     | Animate a ref value to a target              | 1.0     |
 | `delay`    | Pause for a given duration                   | 1.0     |
-| `parallel` | Animate multiple values simultaneously       | 1.0     |
+| `parallel` | Animate multiple `values` simultaneously     | 1.0     |
 | `callback` | Run external logic (sync or async)           | 1.0     |
 | `vibrate`  | Trigger haptic feedback                      | 1.0     |
 | `hold`     | Pause animation until `nextStep()` is called | 1.0     |
@@ -350,7 +350,7 @@ MIT – Created by Cyril Adam
 
 ---
 
-## 📦 CHANGELOG for `v1.4.1`
+## 📦 CHANGELOG for `v1.4.2` and `v1.4.1`
 
 ### 🔧 Fixes
 - Fixed a bug where the `stop()` step didn't correctly interrupt scenario execution in all cases.
@@ -362,6 +362,7 @@ MIT – Created by Cyril Adam
 - Factored out reusable logic into `evalStepValue()` and `evalStepCondition()` to unify async/sync step evaluation across `set`, `ifThen`, and `callback` steps.
 - Jump logic now centralized via `jumpTo()` utility, ensuring consistent block traversal across `ifThen`, `ifElse`, and `ifEnd`.
 - Internal state handling made more robust for future scalability and debugging ease.
+- Scenario validation (`compileScenario`) now checks `parallel` content blocks.
 
 
 ## 📜 CHANGELOG for `v1.4.0`
