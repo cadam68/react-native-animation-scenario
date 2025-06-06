@@ -76,7 +76,14 @@ export const useAnimationScenario = ({
     return result;
   }
 
-  const jumpTo = (steps, startIndex, startType, endTypes,) => {
+  const evalHelper = (toValue, target) => {
+    if (typeof toValue === "number") return toValue;
+    if (typeof toValue === "object" && toValue.type === "inc") return (animatedRefs.current[target].__getValue() + toValue.value);
+    if (typeof toValue === "object" && toValue.type === "dec") return (animatedRefs.current[target].__getValue() - toValue.value);
+    return toValue;
+  };
+
+  const jumpTo = (steps, startIndex, startType, endTypes) => {
     let depth = 0;
     for (let i = startIndex + 1; i < steps.length; i++) {
       const s = steps[i];
@@ -89,15 +96,13 @@ export const useAnimationScenario = ({
     return steps.length; // fallback: jump to end if not found
   };
 
+
   const runStep = useCallback(async (step, index) => {
     setCurrentStepIndex(index);
 
     switch (step.type) {
-      case "move":
-      case "timing": {
-        let toValue = await evalStepValue(step.to);
-        if (typeof toValue === "object" && toValue.type === "inc") toValue = animatedRefs.current[step.target].__getValue() + toValue.value;
-        if (typeof toValue === "object" && toValue.type === "dec") toValue = animatedRefs.current[step.target].__getValue() - toValue.value;
+      case "move": {
+        let toValue = evalHelper(await evalStepValue(step.to), step.target);
         await new Promise(res =>
           Animated.timing(animatedRefs.current[step.target], {
             toValue,
@@ -109,18 +114,22 @@ export const useAnimationScenario = ({
         break;
       }
 
+
       case "parallel": {
+        const animations = await Promise.all(
+          step.targets.map(async t => {
+            let toValue = evalHelper(await evalStepValue(t.to), t.target);
+            return Animated.timing(animatedRefs.current[t.target], {
+              toValue,
+              duration: t.duration,
+              useNativeDriver: t.native !== false,
+              easing: t.easing,
+            });
+          })
+        );
+
         await new Promise(res =>
-          Animated.parallel(
-            step.targets.map(t =>
-              Animated.timing(animatedRefs.current[t.target], {
-                toValue: t.to,
-                duration: t.duration,
-                useNativeDriver: t.native !== false,
-                easing: step.easing,
-              })
-            )
-          ).start(() => res())
+          Animated.parallel(animations).start(() => res())
         );
         break;
       }

@@ -49,6 +49,23 @@ export const compileScenario = (scenario, { blocks = {}, callbacks = {}, initial
         }
       }
 
+      if (step.type === "parallel") {
+        if (!Array.isArray(step.targets)) {
+          validationErrors.push(`parallel step must include a 'targets' array.`);
+        } else {
+          for (const t of step.targets) {
+            if (!t || t.type !== "move") {
+              validationErrors.push(`parallel: each target must be a valid 'move' step.`);
+              break;
+            }
+            if (!t.target || typeof t.target !== "string") {
+              validationErrors.push(`parallel: each move step must include a valid 'target'.`);
+            }
+          }
+        }
+      }
+
+
       const annotated = sourceBlock ? { ...step, __sourceBlock: sourceBlock } : step;
       steps.push(annotated);
     }

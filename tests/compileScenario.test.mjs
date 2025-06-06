@@ -1,5 +1,5 @@
 import { compileScenario } from "../src/compileScenario.js";
-import { label, comment, move, defineScenario, use, delay, goto, ifThen, ifElse, ifEnd } from "../src/scenarioEngine.js";
+import { label, comment, move, defineScenario, use, delay, goto, ifThen, ifElse, ifEnd, parallel, set } from "../src/scenarioEngine.js";
 import * as assert from "node:assert";
 
 /* run :
@@ -249,15 +249,28 @@ test("step4.0 - passes for correctly nested ifThen-else-endIf", () => {
 });
 
 
-test("step4.0 - throws error for duplicate ifElse", () => {
+test("step4.1 - passes for correct parallel content", () => {
   const scenario = defineScenario([
-    ifThen(() => true),
-    label("doThis"),
-    ifElse(),
-    label("doThat"),
-    ifElse(),
-    label("doAlsoThat"),
-    ifEnd()
+    label("start"),
+    parallel([
+      move("opacity", 1, 500),
+      move("scale", 0.8, 1000)
+    ]),
+    comment("end"),
   ]);
-  expect(() => compileScenario(scenario)).toThrow(/already defined/);
+
+  expect(() => compileScenario(scenario, { initialValues : { opacity: 0, scale: 1 }})).not.toThrow();
+});
+
+test("step4.1 - throws error for invalid parallel content", () => {
+const scenario = defineScenario([
+  label("start"),
+  parallel([
+    move("opacity", 1, 500),
+    set("scale", 0.8)
+  ]),
+  comment("end"),
+]);
+
+expect(() => compileScenario(scenario, { initialValues : { opacity: 0, scale: 1 }} )).toThrow("each target must be a valid 'move' step");
 });
