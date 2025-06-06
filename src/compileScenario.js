@@ -95,6 +95,8 @@ export const compileScenario = (scenario, { blocks = {}, callbacks = {}, initial
     } else if (step.type === "ifElse") {
       if (stack.length === 0 || stack[stack.length - 1].type !== "ifThen") {
         validationErrors.push(`"ifElse" at step ${i} has no matching "ifThen"`);
+      } else if (stack[stack.length - 1].hasElse) {
+        validationErrors.push(`"ifElse" at step ${i} already defined for this block`);
       } else {
         stack[stack.length - 1].hasElse = true;
       }
