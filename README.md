@@ -367,7 +367,7 @@ MIT – Created by Cyril Adam
 ## 📜 CHANGELOG for `v1.4.0`
 
 ### ✨ Added
-- `ifThen(condition)`, ìfElse()`, ìfEnd()` block structure: familiar conditional logic using nested blocks.
+- `ifThen(condition)`, `ifElse()`, `ifEnd()` block structure: familiar conditional logic using nested blocks.
 - `nextStep(label)`: allows you to jump to a specific label manually, even after a `hold()` step.
 - `move(...)` now supports relative values using `inc(x)` and `dec(x)`.
 - Extended support for `callback()` to accept parameters, including dynamic values.
@@ -375,9 +375,9 @@ MIT – Created by Cyril Adam
 - Modular refactoring for better extensibility.
 
 ### 🐞 Fixed
-- Ensured `ifJump() does not rely on refs directly from `defineScenario()`.
+- Ensured `ifJump()` does not rely on refs directly from `defineScenario()`.
 - Improved safety and label resolution for nested conditional logic.
-- Fixed corner cases in `hold()` + jump logic for `nextStep().
+- Fixed corner cases in `hold()` + jump logic for `nextStep()`.
 
 ### 🧪 Testing
 - Jest tests added for malformed conditional structures (`ifThen` without `ifEnd`, duplicate `ifElse`, etc.)
