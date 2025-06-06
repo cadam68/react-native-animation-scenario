@@ -1,4 +1,16 @@
 
+/**
+ * Flattens a scenario definition into executable steps while validating labels
+ * and referenced blocks.
+ *
+ * @param {Array<Object>} scenario - Array of step objects or block references.
+ * @param {Object} [options]
+ * @param {Object<string,Array>} [options.blocks] - Named blocks referenced via `use` steps.
+ * @param {Object<string,Function>} [options.callbacks] - Callback functions referenced in the scenario.
+ * @param {Object<string,number>} [options.initialValues] - Animated values available to steps.
+ * @param {boolean} [throughErrors=true] - Throw an error if validation fails.
+ * @returns {{steps: Array, labels: Object, validationErrors: Array<string>}}
+ */
 export const compileScenario = (scenario, { blocks = {}, callbacks = {}, initialValues = {} } = {}, throughErrors = true) => {
   const steps = [];
   const labels = {};
