@@ -1,6 +1,6 @@
 {
   "name": "react-native-animation-scenario",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Declarative animation scenario hook for React Native",
   "main": "index.js",
   "keywords": [
