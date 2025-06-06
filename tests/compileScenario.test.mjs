@@ -248,3 +248,16 @@ test("step4.0 - passes for correctly nested ifThen-else-endIf", () => {
   expect(() => compileScenario(scenario)).not.toThrow();
 });
 
+
+test("step4.0 - throws error for duplicate ifElse", () => {
+  const scenario = defineScenario([
+    ifThen(() => true),
+    label("doThis"),
+    ifElse(),
+    label("doThat"),
+    ifElse(),
+    label("doAlsoThat"),
+    ifEnd()
+  ]);
+  expect(() => compileScenario(scenario)).toThrow(/already defined/);
+});
