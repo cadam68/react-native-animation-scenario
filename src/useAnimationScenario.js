@@ -1,5 +1,5 @@
 import {useRef, useState, useCallback, useEffect} from "react";
-import { Animated, View, Text, StyleSheet } from "react-native";
+import { Animated } from "react-native";
 import * as Haptics from "expo-haptics";
 import { compileScenario } from "./compileScenario.js";
 import { TimelineView as Timeline } from "./TimelineView";
@@ -52,7 +52,7 @@ export const useAnimationScenario = ({
   const stepLabels = steps.map((s, i) => s.label || s.name || `${s.type}-${i}`);
 
   const evalStepValue = async (stepValue) => {
-    let result = undefined;
+    let result;
     let fn;
 
     if (typeof stepValue === "string" && callbacks[stepValue]) fn = callbacks[stepValue];
@@ -175,7 +175,7 @@ export const useAnimationScenario = ({
         const targetIndex = labels[targetLabel];
 
         if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
-        callingStepIndexRef.current = index;
+        callingStepIndexRef.current = index+1;
         stepIndexRef.current = targetIndex;
 
         if (debug) console.log(`goto step# ${targetIndex}`);
@@ -301,7 +301,7 @@ export const useAnimationScenario = ({
   const nextStep = useCallback(async (targetLabel = undefined) => {
 
     // Jump to the provided target
-    if(typeof targetLabel === "string" && targetLabel !== undefined) {
+    if(typeof targetLabel === "string") {
       const targetIndex = labels[targetLabel];
       if (targetIndex === undefined) throw new Error(`[useAnimationScenario] Label '${targetLabel}' not found`);
       stepIndexRef.current = targetIndex;
