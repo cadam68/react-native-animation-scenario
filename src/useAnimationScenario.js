@@ -318,9 +318,13 @@ export const useAnimationScenario = ({
     const step = steps[stepIndexRef.current];
     if (!step) return;
     if (shouldStop.current) return;
-    await runStep(step, stepIndexRef.current);
-    stepIndexRef.current++;
-    if (stepIndexRef.current >= steps.length) stepIndexRef.current = 0;
+    const result = await runStep(step, stepIndexRef.current);
+    if (result !== "jumped") {
+      stepIndexRef.current++;
+      if (stepIndexRef.current >= steps.length) stepIndexRef.current = 0;
+    }
+
+
   }, [steps]);
 
   return {
