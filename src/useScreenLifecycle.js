@@ -2,14 +2,18 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 
 /**
- * Runs `onFocus` when the screen is focused, and `onBlur` when unfocused.
- * Usage :
- *   useScreenLifecycle(
- *     useCallback(() => {}, []),
- *     useCallback(() => { stop() }, [])
- *   );
+ * Runs `onFocus` when the screen is focused and `onBlur` when unfocused.
  *
- *   import { useScreenLifecycle } from 'react-native-animation-scenario/useScreenLifecycle';
+ * @param {Function} [onFocus] - Function executed when the screen gains focus.
+ * @param {Function} [onBlur] - Function executed when the screen loses focus.
+ *
+ * Usage:
+ * ```js
+ * useScreenLifecycle(
+ *   useCallback(() => {}, []),
+ *   useCallback(() => stop(), [])
+ * );
+ * ```
  */
 export const useScreenLifecycle = (onFocus = () => {}, onBlur = () => {}) => {
   useFocusEffect(

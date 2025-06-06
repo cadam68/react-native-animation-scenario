@@ -6,6 +6,18 @@ import { TimelineView as Timeline } from "./TimelineView";
 
 const debug = false;
 
+/**
+ * Run and control an animation scenario.
+ *
+ * @param {Object} params
+ * @param {Array} params.scenario - Scenario definition created with helpers.
+ * @param {Object<string,number>} params.initialValues - Animated value map.
+ * @param {Object<string,Array>} [params.blocks]
+ * @param {Object<string,Function>} [params.callbacks]
+ * @param {boolean} [params.loop=false]
+ * @param {"once"|"always"} [params.vibrationMode="once"]
+ * @param {"auto"|"manual"} [params.mode="auto"]
+ */
 export const useAnimationScenario = ({
                                        scenario,
                                        initialValues,
@@ -51,6 +63,10 @@ export const useAnimationScenario = ({
 
   const stepLabels = steps.map((s, i) => s.label || s.name || `${s.type}-${i}`);
 
+  /**
+   * Evaluate a step value which can be a literal, a callback name or a function.
+   * Supports asynchronous callbacks and returns the resolved value.
+   */
   const evalStepValue = async (stepValue) => {
     let result;
     let fn;
@@ -64,6 +80,10 @@ export const useAnimationScenario = ({
     return result;
   }
 
+  /**
+   * Evaluate the condition of a conditional step. Accepts a callback name or
+   * function and resolves to the returned boolean value.
+   */
   const evalStepCondition = async (stepCondition) => {
     let result = undefined;
     const fn = typeof stepCondition === "string" ? callbacks[stepCondition] : stepCondition;
@@ -76,6 +96,10 @@ export const useAnimationScenario = ({
     return result;
   }
 
+  /**
+   * Apply relative increment/decrement helpers to compute the final target
+   * value for a move step.
+   */
   const evalHelper = (toValue, target) => {
     if (typeof toValue === "number") return toValue;
     if (typeof toValue === "object" && toValue.type === "inc") return (animatedRefs.current[target].__getValue() + toValue.value);
@@ -83,6 +107,10 @@ export const useAnimationScenario = ({
     return toValue;
   };
 
+  /**
+   * Jump from `startIndex` to the matching end of a control block.
+   * Used by conditional helpers like `ifThen`.
+   */
   const jumpTo = (steps, startIndex, startType, endTypes) => {
     let depth = 0;
     for (let i = startIndex + 1; i < steps.length; i++) {
@@ -97,6 +125,10 @@ export const useAnimationScenario = ({
   };
 
 
+  /**
+   * Execute a single step and update the step index accordingly.
+   * Returns "jumped" when the step results in a control flow jump.
+   */
   const runStep = useCallback(async (step, index) => {
     setCurrentStepIndex(index);
 
@@ -249,6 +281,10 @@ export const useAnimationScenario = ({
     }
   }, [steps]);
 
+  /**
+   * Automatically run the scenario from the beginning until completion or
+   * until stopped. Loops when the `loop` option is enabled.
+   */
   const runAuto = useCallback(async () => {
 
     const run = async () => {
@@ -270,16 +306,19 @@ export const useAnimationScenario = ({
     else await run();
   }, [steps]);
 
+  /** Start running the scenario unless manual mode is enabled. */
   const start = useCallback(() => {
     if (mode !== "manual") runAuto();
   }, [mode, runAuto]);
 
+  /** Stop execution and reset state. */
   const stop = useCallback(() => {
     reset();
     if(debug) console.log('stop()')
     shouldStop.current = true;
   }, []);
 
+  /** Reset step index and animated values to their initial state. */
   const reset = useCallback(() => {
     if(debug) console.log('reset()')
     stepIndexRef.current = 0;
@@ -298,6 +337,10 @@ export const useAnimationScenario = ({
     });
   }, []);
 
+  /**
+   * Manually advance to the next step. If a label is provided the index jumps
+   * to it before executing.
+   */
   const nextStep = useCallback(async (targetLabel = undefined) => {
 
     // Jump to the provided target

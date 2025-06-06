@@ -1,6 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
+/**
+ * Simple component that displays the list of step labels and highlights the
+ * currently active one. Useful when debugging scenarios.
+ */
 export const TimelineView = ({ stepLabels, currentStepIndex }) => (
   <View style={styles.timeline}>
     {stepLabels.map((label, index) => (
