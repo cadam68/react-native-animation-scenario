@@ -24,6 +24,11 @@ Works with [React Native](https://reactnative.dev/) and [Expo](https://expo.dev)
 
 ---
 
+## 🔥 What's New in 1.4.3 
+
+- ✅ documentation added.
+
+
 ## 🔥 What's New in 1.4.2 `Patch Release`
 
 - 🛠 Fixed an issue where the `stop() step didn’t always correctly interrupt the scenario execution.
