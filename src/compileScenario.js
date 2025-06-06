@@ -78,7 +78,7 @@ export const compileScenario = (scenario, { blocks = {}, callbacks = {}, initial
     }
   }
 
-  // validate exising label used by goto and ifJump
+  // validate existing label used by goto and ifJump
   const seenLabels = new Set(Object.keys(labels));
   steps.filter(step => step.type === "goto" || step.type === "ifJump").forEach(step => {
     if(step.type === "goto" && !seenLabels.has(step.label)) validationErrors.push(`Missing label : ${step.label}`);
